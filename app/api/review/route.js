@@ -149,11 +149,17 @@ async function callClaude(prompt) {
     }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(`Anthropic API error: ${data?.error?.message || res.status}`);
+  if (!res.ok) throw new Error(`Anthropic API error (${res.status}): ${data?.error?.message || JSON.stringify(data)}`);
   const textBlock = (data.content || []).find((b) => b.type === "text");
-  if (!textBlock) throw new Error("No text response from model");
+  if (!textBlock) {
+    throw new Error(`No text response from model. stop_reason=${data.stop_reason}, raw=${JSON.stringify(data).slice(0, 500)}`);
+  }
   const clean = textBlock.text.replace(/```json|```/g, "").trim();
-  return JSON.parse(clean);
+  try {
+    return JSON.parse(clean);
+  } catch {
+    throw new Error(`Model reply wasn't valid JSON: ${clean.slice(0, 500)}`);
+  }
 }
 
 export async function POST(req) {
